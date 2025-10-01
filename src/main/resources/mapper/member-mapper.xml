@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.iei.member.dao.MemberDao">
+    
+    <resultMap id="memberResultMap" type="kr.co.iei.member.dto.Member">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="name" column="name"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="role" column="role"/>
+        <result property="profileImage" column="profile_image"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="licenseNumber" column="license_number"/>
+        <result property="licenseImage" column="license_image"/>
+        <result property="hospitalName" column="hospital_name"/>
+        <result property="hospitalAddress" column="hospital_address"/>
+        <result property="introduction" column="introduction"/>
+        <result property="specialties" column="specialties"/>
+        <result property="experience" column="experience"/>
+        <result property="education" column="education"/>
+        <result property="certifications" column="certifications"/>
+        <result property="birthDate" column="birth_date"/>
+        <result property="gender" column="gender"/>
+        <result property="address" column="address"/>
+        <result property="emergencyContact" column="emergency_contact"/>
+        <result property="medicalHistory" column="medical_history"/>
+        <result property="currentCondition" column="current_condition"/>
+        <result property="treatmentGoal" column="treatment_goal"/>
+    </resultMap>
+    
+    <insert id="insertMember" parameterType="kr.co.iei.member.dto.Member" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO members (
+            username, password, name, email, phone, role, profile_image, status,
+            license_number, license_image, hospital_name, hospital_address,
+            introduction, specialties, experience, education, certifications,
+            birth_date, gender, address, emergency_contact, medical_history,
+            current_condition, treatment_goal, created_at, updated_at
+        ) VALUES (
+            #{username}, #{password}, #{name}, #{email}, #{phone}, #{role}, #{profileImage}, #{status},
+            #{licenseNumber}, #{licenseImage}, #{hospitalName}, #{hospitalAddress},
+            #{introduction}, #{specialties}, #{experience}, #{education}, #{certifications},
+            #{birthDate}, #{gender}, #{address}, #{emergencyContact}, #{medicalHistory},
+            #{currentCondition}, #{treatmentGoal}, NOW(), NOW()
+        )
+    </insert>
+    
+    <select id="selectMemberById" parameterType="long" resultMap="memberResultMap">
+        SELECT * FROM members WHERE id = #{id}
+    </select>
+    
+    <select id="selectMemberByUsername" parameterType="string" resultMap="memberResultMap">
+        SELECT * FROM members WHERE username = #{username}
+    </select>
+    
+    <select id="selectMemberByUsernameAndPassword" resultMap="memberResultMap">
+        SELECT * FROM members WHERE username = #{username} AND password = #{password}
+    </select>
+    
+    <update id="updateMember" parameterType="kr.co.iei.member.dto.Member">
+        UPDATE members SET
+            name = #{name},
+            email = #{email},
+            phone = #{phone},
+            profile_image = #{profileImage},
+            introduction = #{introduction},
+            specialties = #{specialties},
+            education = #{education},
+            certifications = #{certifications},
+            address = #{address},
+            medical_history = #{medicalHistory},
+            current_condition = #{currentCondition},
+            treatment_goal = #{treatmentGoal},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteMember" parameterType="long">
+        DELETE FROM members WHERE id = #{id}
+    </delete>
+    
+    <select id="existsByEmail" parameterType="string" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM members WHERE email = #{email}
+    </select>
+    
+    <select id="existsByUsername" parameterType="string" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM members WHERE username = #{username}
+    </select>
+    
+    <select id="selectMembersByRole" parameterType="string" resultMap="memberResultMap">
+        SELECT * FROM members WHERE role = #{role} ORDER BY created_at DESC
+    </select>
+    
+    <select id="selectMembersByRoleWithPaging" resultMap="memberResultMap">
+        SELECT * FROM members 
+        WHERE role = #{role} 
+        ORDER BY created_at DESC 
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <select id="selectPendingTherapists" resultMap="memberResultMap">
+        SELECT * FROM members 
+        WHERE role = 'THERAPIST' AND status = 'PENDING' 
+        ORDER BY created_at DESC
+    </select>
+    
+    <update id="approveTherapist" parameterType="long">
+        UPDATE members SET status = 'ACTIVE', updated_at = NOW() WHERE id = #{id}
+    </update>
+    
+    <update id="rejectTherapist" parameterType="long">
+        UPDATE members SET status = 'INACTIVE', updated_at = NOW() WHERE id = #{id}
+    </update>
+    
+    <select id="selectMembersByStatus" parameterType="string" resultMap="memberResultMap">
+        SELECT * FROM members WHERE status = #{status} ORDER BY created_at DESC
+    </select>
+    
+    <select id="searchMembers" resultMap="memberResultMap">
+        SELECT * FROM members 
+        WHERE (name LIKE CONCAT('%', #{keyword}, '%') 
+               OR email LIKE CONCAT('%', #{keyword}, '%')
+               OR phone LIKE CONCAT('%', #{keyword}, '%'))
+        <if test="role != null and role != ''">
+            AND role = #{role}
+        </if>
+        ORDER BY created_at DESC 
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <select id="countMembersByRole" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM members WHERE role = #{role}
+    </select>
+    
+    <select id="countMembersByStatus" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM members WHERE status = #{status}
+    </select>
+    
+    <select id="countSearchResults" resultType="int">
+        SELECT COUNT(*) FROM members 
+        WHERE (name LIKE CONCAT('%', #{keyword}, '%') 
+               OR email LIKE CONCAT('%', #{keyword}, '%')
+               OR phone LIKE CONCAT('%', #{keyword}, '%'))
+        <if test="role != null and role != ''">
+            AND role = #{role}
+        </if>
+    </select>
+    
+</mapper>

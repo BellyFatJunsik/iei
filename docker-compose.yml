@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: pt-project-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ptproject123
+      MYSQL_DATABASE: pt_project
+      MYSQL_USER: ptuser
+      MYSQL_PASSWORD: ptpass123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database_schema.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql_config:/etc/mysql/conf.d
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "ptuser", "-pptpass123"]
+      timeout: 20s
+      retries: 10
+      interval: 10s
+      start_period: 40s
+    networks:
+      - pt-network
+
+  backend:
+    build: .
+    container_name: pt-project-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/pt_project?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: ptuser
+      SPRING_DATASOURCE_PASSWORD: ptpass123
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      JWT_SECRET: pt_project_secret_key_for_jwt_token_generation_2024_iei_team
+      JWT_EXPIRATION: 86400000
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - pt-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: pt-project-phpmyadmin
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: ptuser
+      PMA_PASSWORD: ptpass123
+    depends_on:
+      - mysql
+    networks:
+      - pt-network
+
+volumes:
+  mysql_data:
+
+networks:
+  pt-network:
+    driver: bridge

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.iei.notice.dao.NoticeDao">
+    
+    <resultMap id="noticeResultMap" type="kr.co.iei.notice.dto.Notice">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="category" column="category"/>
+        <result property="status" column="status"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdByName" column="created_by_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="priority" column="priority"/>
+        <result property="publishedAt" column="published_at"/>
+    </resultMap>
+    
+    <insert id="insertNotice" parameterType="kr.co.iei.notice.dto.Notice" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO notices (
+            title, content, category, status, created_by, created_by_name,
+            view_count, priority, published_at, created_at, updated_at
+        ) VALUES (
+            #{title}, #{content}, #{category}, #{status}, #{createdBy}, #{createdByName},
+            #{viewCount}, #{priority}, #{publishedAt}, NOW(), NOW()
+        )
+    </insert>
+    
+    <select id="selectNoticeById" parameterType="long" resultMap="noticeResultMap">
+        SELECT n.*, m.name as created_by_name
+        FROM notices n
+        LEFT JOIN members m ON n.created_by = m.id
+        WHERE n.id = #{id}
+    </select>
+    
+    <select id="selectAllNotices" resultMap="noticeResultMap">
+        SELECT n.*, m.name as created_by_name
+        FROM notices n
+        LEFT JOIN members m ON n.created_by = m.id
+        WHERE n.status = 'ACTIVE'
+        ORDER BY n.priority DESC, n.published_at DESC
+    </select>
+    
+    <select id="selectNoticesByCategory" parameterType="string" resultMap="noticeResultMap">
+        SELECT n.*, m.name as created_by_name
+        FROM notices n
+        LEFT JOIN members m ON n.created_by = m.id
+        WHERE n.category = #{category} AND n.status = 'ACTIVE'
+        ORDER BY n.priority DESC, n.published_at DESC
+    </select>
+    
+    <select id="selectNoticesByStatus" parameterType="string" resultMap="noticeResultMap">
+        SELECT n.*, m.name as created_by_name
+        FROM notices n
+        LEFT JOIN members m ON n.created_by = m.id
+        WHERE n.status = #{status}
+        ORDER BY n.priority DESC, n.published_at DESC
+    </select>
+    
+    <update id="updateNotice" parameterType="kr.co.iei.notice.dto.Notice">
+        UPDATE notices SET
+            title = #{title},
+            content = #{content},
+            category = #{category},
+            status = #{status},
+            priority = #{priority},
+            published_at = #{publishedAt},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteNotice" parameterType="long">
+        UPDATE notices SET status = 'INACTIVE', updated_at = NOW() WHERE id = #{id}
+    </delete>
+    
+    <update id="incrementViewCount" parameterType="long">
+        UPDATE notices SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+    
+    <select id="countNoticesByCategory" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM notices WHERE category = #{category} AND status = 'ACTIVE'
+    </select>
+    
+</mapper>

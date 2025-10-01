@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.iei.stats.dao.StatsDao">
+    
+    <select id="selectDashboardStats" resultType="map">
+        SELECT 
+            (SELECT COUNT(*) FROM members WHERE role = 'PATIENT' AND status = 'ACTIVE') as total_patients,
+            (SELECT COUNT(*) FROM members WHERE role = 'THERAPIST' AND status = 'ACTIVE') as total_therapists,
+            (SELECT COUNT(*) FROM members WHERE role = 'THERAPIST' AND status = 'PENDING') as pending_therapists,
+            (SELECT COUNT(*) FROM programs WHERE status = 'ACTIVE') as total_programs,
+            (SELECT COUNT(*) FROM programs WHERE status = 'ACTIVE') as active_programs,
+            (SELECT COUNT(*) FROM reviews WHERE status = 'ACTIVE') as total_reviews,
+            (SELECT COUNT(*) FROM daily_schedules) as total_reservations,
+            (SELECT COUNT(*) FROM daily_schedules WHERE status = 'COMPLETED') as completed_reservations,
+            (SELECT COUNT(*) FROM daily_schedules WHERE status = 'CANCELLED') as cancelled_reservations,
+            (SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE status = 'ACTIVE' AND rating IS NOT NULL) as average_rating,
+            (SELECT COUNT(*) FROM members WHERE role IN ('PATIENT', 'THERAPIST') 
+             AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)) as monthly_new_users,
+            0 as monthly_revenue
+    </select>
+    
+    <select id="selectMonthlyUserStats" resultType="map">
+        SELECT 
+            DATE_FORMAT(created_at, '%Y-%m') as month,
+            COUNT(CASE WHEN role = 'PATIENT' THEN 1 END) as patients,
+            COUNT(CASE WHEN role = 'THERAPIST' THEN 1 END) as therapists,
+            COUNT(*) as total
+        FROM members 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY month DESC
+    </select>
+    
+    <select id="selectMonthlyRevenueStats" resultType="map">
+        SELECT 
+            DATE_FORMAT(created_at, '%Y-%m') as month,
+            0 as revenue
+        FROM daily_schedules 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY month DESC
+    </select>
+    
+    <select id="selectMonthlyProgramStats" resultType="map">
+        SELECT 
+            DATE_FORMAT(created_at, '%Y-%m') as month,
+            COUNT(*) as programs_created,
+            SUM(view_count) as total_views,
+            SUM(like_count) as total_likes,
+            SUM(completed_count) as total_completions
+        FROM programs 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY month DESC
+    </select>
+    
+    <select id="selectPatientProgressStats" resultType="map">
+        SELECT 
+            p.name as program_name,
+            pc.completed_at,
+            pc.actual_duration,
+            pc.difficulty_rating,
+            pc.satisfaction_rating,
+            pc.status
+        FROM program_completions pc
+        LEFT JOIN programs p ON pc.program_id = p.id
+        WHERE pc.patient_id = #{patientId}
+        ORDER BY pc.completed_at DESC
+    </select>
+    
+    <select id="selectPatientCompletionStats" resultType="map">
+        SELECT 
+            DATE_FORMAT(pc.completed_at, '%Y-%m') as month,
+            COUNT(*) as completions,
+            AVG(pc.satisfaction_rating) as avg_satisfaction,
+            AVG(pc.difficulty_rating) as avg_difficulty
+        FROM program_completions pc
+        WHERE pc.patient_id = #{patientId}
+        AND pc.completed_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(pc.completed_at, '%Y-%m')
+        ORDER BY month DESC
+    </select>
+    
+    <select id="selectTherapistStats" resultType="map">
+        SELECT 
+            COUNT(DISTINCT ds.patient_id) as total_patients,
+            COUNT(ds.id) as total_sessions,
+            COUNT(CASE WHEN ds.status = 'COMPLETED' THEN 1 END) as completed_sessions,
+            COUNT(CASE WHEN ds.status = 'CANCELLED' THEN 1 END) as cancelled_sessions,
+            AVG(CASE WHEN ds.status = 'COMPLETED' THEN 1 ELSE 0 END) * 100 as completion_rate
+        FROM daily_schedules ds
+        WHERE ds.therapist_id = #{therapistId}
+        AND ds.date >= DATE_SUB(NOW(), INTERVAL 3 MONTH)
+    </select>
+    
+    <select id="selectProgramStats" resultType="map">
+        SELECT 
+            p.name as program_name,
+            p.category,
+            p.difficulty,
+            p.view_count,
+            p.like_count,
+            p.completed_count,
+            p.average_rating,
+            COUNT(pc.id) as total_completions,
+            AVG(pc.satisfaction_rating) as avg_satisfaction,
+            AVG(pc.difficulty_rating) as avg_difficulty
+        FROM programs p
+        LEFT JOIN program_completions pc ON p.id = pc.program_id
+        WHERE p.id = #{programId}
+        GROUP BY p.id, p.name, p.category, p.difficulty, p.view_count, p.like_count, p.completed_count, p.average_rating
+    </select>
+    
+    <select id="selectSystemMetrics" resultType="map">
+        SELECT 
+            'database_size' as metric_name,
+            ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) as metric_value,
+            'MB' as unit
+        FROM information_schema.tables 
+        WHERE table_schema = DATABASE()
+        
+        UNION ALL
+        
+        SELECT 
+            'total_users' as metric_name,
+            COUNT(*) as metric_value,
+            'users' as unit
+        FROM members
+        
+        UNION ALL
+        
+        SELECT 
+            'active_programs' as metric_name,
+            COUNT(*) as metric_value,
+            'programs' as unit
+        FROM programs 
+        WHERE status = 'ACTIVE'
+        
+        UNION ALL
+        
+        SELECT 
+            'total_sessions' as metric_name,
+            COUNT(*) as metric_value,
+            'sessions' as unit
+        FROM daily_schedules
+        
+        UNION ALL
+        
+        SELECT 
+            'completed_sessions' as metric_name,
+            COUNT(*) as metric_value,
+            'sessions' as unit
+        FROM daily_schedules 
+        WHERE status = 'COMPLETED'
+    </select>
+    
+</mapper>

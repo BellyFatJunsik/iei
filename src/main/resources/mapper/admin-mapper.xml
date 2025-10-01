@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.iei.admin.dao.AdminDao">
+    
+    <resultMap id="adminResultMap" type="kr.co.iei.admin.dto.Admin">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="name" column="name"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="role" column="role"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="lastLoginAt" column="last_login_at"/>
+        <result property="permissions" column="permissions"/>
+    </resultMap>
+    
+    <resultMap id="dashboardStatsResultMap" type="kr.co.iei.admin.dto.DashboardStats">
+        <result property="totalPatients" column="total_patients"/>
+        <result property="totalTherapists" column="total_therapists"/>
+        <result property="pendingTherapists" column="pending_therapists"/>
+        <result property="totalPrograms" column="total_programs"/>
+        <result property="activePrograms" column="active_programs"/>
+        <result property="totalReviews" column="total_reviews"/>
+        <result property="totalReservations" column="total_reservations"/>
+        <result property="completedReservations" column="completed_reservations"/>
+        <result property="cancelledReservations" column="cancelled_reservations"/>
+        <result property="averageRating" column="average_rating"/>
+        <result property="monthlyNewUsers" column="monthly_new_users"/>
+        <result property="monthlyRevenue" column="monthly_revenue"/>
+    </resultMap>
+    
+    <insert id="insertAdmin" parameterType="kr.co.iei.admin.dto.Admin" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO admins (
+            username, password, name, email, phone, role, status,
+            permissions, created_at, updated_at
+        ) VALUES (
+            #{username}, #{password}, #{name}, #{email}, #{phone}, #{role}, #{status},
+            #{permissions}, NOW(), NOW()
+        )
+    </insert>
+    
+    <select id="selectAdminById" parameterType="long" resultMap="adminResultMap">
+        SELECT * FROM admins WHERE id = #{id}
+    </select>
+    
+    <select id="selectAdminByUsername" parameterType="string" resultMap="adminResultMap">
+        SELECT * FROM admins WHERE username = #{username}
+    </select>
+    
+    <select id="selectAdminByUsernameAndPassword" resultMap="adminResultMap">
+        SELECT * FROM admins WHERE username = #{username} AND password = #{password}
+    </select>
+    
+    <update id="updateAdmin" parameterType="kr.co.iei.admin.dto.Admin">
+        UPDATE admins SET
+            name = #{name},
+            email = #{email},
+            phone = #{phone},
+            status = #{status},
+            permissions = #{permissions},
+            last_login_at = #{lastLoginAt},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteAdmin" parameterType="long">
+        DELETE FROM admins WHERE id = #{id}
+    </delete>
+    
+    <select id="selectDashboardStats" resultMap="dashboardStatsResultMap">
+        SELECT 
+            (SELECT COUNT(*) FROM members WHERE role = 'PATIENT' AND status = 'ACTIVE') as total_patients,
+            (SELECT COUNT(*) FROM members WHERE role = 'THERAPIST' AND status = 'ACTIVE') as total_therapists,
+            (SELECT COUNT(*) FROM members WHERE role = 'THERAPIST' AND status = 'PENDING') as pending_therapists,
+            (SELECT COUNT(*) FROM programs WHERE status = 'ACTIVE') as total_programs,
+            (SELECT COUNT(*) FROM programs WHERE status = 'ACTIVE') as active_programs,
+            (SELECT COUNT(*) FROM reviews WHERE status = 'ACTIVE') as total_reviews,
+            (SELECT COUNT(*) FROM daily_schedules) as total_reservations,
+            (SELECT COUNT(*) FROM daily_schedules WHERE status = 'COMPLETED') as completed_reservations,
+            (SELECT COUNT(*) FROM daily_schedules WHERE status = 'CANCELLED') as cancelled_reservations,
+            (SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE status = 'ACTIVE' AND rating IS NOT NULL) as average_rating,
+            (SELECT COUNT(*) FROM members WHERE role IN ('PATIENT', 'THERAPIST') 
+             AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)) as monthly_new_users,
+            0 as monthly_revenue
+    </select>
+    
+    <select id="selectMonthlyUserStats" resultType="map">
+        SELECT 
+            DATE_FORMAT(created_at, '%Y-%m') as month,
+            COUNT(CASE WHEN role = 'PATIENT' THEN 1 END) as patients,
+            COUNT(CASE WHEN role = 'THERAPIST' THEN 1 END) as therapists,
+            COUNT(*) as total
+        FROM members 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY month DESC
+    </select>
+    
+    <select id="selectMonthlyRevenueStats" resultType="map">
+        SELECT 
+            DATE_FORMAT(created_at, '%Y-%m') as month,
+            0 as revenue
+        FROM daily_schedules 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY month DESC
+    </select>
+    
+    <select id="selectMonthlyProgramStats" resultType="map">
+        SELECT 
+            DATE_FORMAT(created_at, '%Y-%m') as month,
+            COUNT(*) as programs_created,
+            SUM(view_count) as total_views,
+            SUM(like_count) as total_likes,
+            SUM(completed_count) as total_completions
+        FROM programs 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY month DESC
+    </select>
+    
+    <select id="selectRecentActivities" resultType="map">
+        SELECT 
+            'user_registration' as activity_type,
+            CONCAT(m.name, '님이 회원가입했습니다.') as description,
+            m.created_at as activity_date
+        FROM members m
+        WHERE m.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        
+        UNION ALL
+        
+        SELECT 
+            'program_created' as activity_type,
+            CONCAT('새로운 프로그램 "', p.name, '"이 등록되었습니다.') as description,
+            p.created_at as activity_date
+        FROM programs p
+        WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        
+        UNION ALL
+        
+        SELECT 
+            'review_created' as activity_type,
+            CONCAT('새로운 후기가 작성되었습니다.') as description,
+            r.created_at as activity_date
+        FROM reviews r
+        WHERE r.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        
+        ORDER BY activity_date DESC
+        LIMIT 20
+    </select>
+    
+    <select id="selectSystemMetrics" resultType="map">
+        SELECT 
+            'database_size' as metric_name,
+            ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) as metric_value,
+            'MB' as unit
+        FROM information_schema.tables 
+        WHERE table_schema = DATABASE()
+        
+        UNION ALL
+        
+        SELECT 
+            'total_users' as metric_name,
+            COUNT(*) as metric_value,
+            'users' as unit
+        FROM members
+        
+        UNION ALL
+        
+        SELECT 
+            'active_sessions' as metric_name,
+            0 as metric_value,
+            'sessions' as unit
+        
+        UNION ALL
+        
+        SELECT 
+            'server_uptime' as metric_name,
+            ROUND(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(created_at) / 3600, 2) as metric_value,
+            'hours' as unit
+        FROM members 
+        ORDER BY created_at ASC 
+        LIMIT 1
+    </select>
+    
+</mapper>

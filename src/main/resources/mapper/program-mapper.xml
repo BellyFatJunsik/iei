@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.iei.program.dao.ProgramDao">
+    
+    <resultMap id="programResultMap" type="kr.co.iei.program.dto.Program">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="category" column="category"/>
+        <result property="difficulty" column="difficulty"/>
+        <result property="duration" column="duration"/>
+        <result property="targetMuscles" column="target_muscles"/>
+        <result property="equipment" column="equipment"/>
+        <result property="instructions" column="instructions"/>
+        <result property="videoUrl" column="video_url"/>
+        <result property="thumbnailUrl" column="thumbnail_url"/>
+        <result property="status" column="status"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdByName" column="created_by_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="completedCount" column="completed_count"/>
+        <result property="averageRating" column="average_rating"/>
+        <result property="aiAnalysis" column="ai_analysis"/>
+        <result property="recommendedFor" column="recommended_for"/>
+        <result property="contraindications" column="contraindications"/>
+    </resultMap>
+    
+    <resultMap id="programCompletionResultMap" type="kr.co.iei.program.dto.ProgramCompletion">
+        <id property="id" column="id"/>
+        <result property="programId" column="program_id"/>
+        <result property="patientId" column="patient_id"/>
+        <result property="therapistId" column="therapist_id"/>
+        <result property="completedAt" column="completed_at"/>
+        <result property="actualDuration" column="actual_duration"/>
+        <result property="completionNotes" column="completion_notes"/>
+        <result property="patientFeedback" column="patient_feedback"/>
+        <result property="difficultyRating" column="difficulty_rating"/>
+        <result property="satisfactionRating" column="satisfaction_rating"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="programName" column="program_name"/>
+        <result property="patientName" column="patient_name"/>
+        <result property="therapistName" column="therapist_name"/>
+    </resultMap>
+    
+    <insert id="insertProgram" parameterType="kr.co.iei.program.dto.Program" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO programs (
+            name, description, category, difficulty, duration, target_muscles, equipment,
+            instructions, video_url, thumbnail_url, status, created_by, created_by_name,
+            ai_analysis, recommended_for, contraindications, view_count, like_count,
+            completed_count, average_rating, created_at, updated_at
+        ) VALUES (
+            #{name}, #{description}, #{category}, #{difficulty}, #{duration}, #{targetMuscles}, #{equipment},
+            #{instructions}, #{videoUrl}, #{thumbnailUrl}, #{status}, #{createdBy}, #{createdByName},
+            #{aiAnalysis}, #{recommendedFor}, #{contraindications}, #{viewCount}, #{likeCount},
+            #{completedCount}, #{averageRating}, NOW(), NOW()
+        )
+    </insert>
+    
+    <select id="selectProgramById" parameterType="long" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.id = #{id}
+    </select>
+    
+    <select id="selectAllPrograms" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.status = 'ACTIVE'
+        ORDER BY p.created_at DESC
+    </select>
+    
+    <select id="selectProgramsByCategory" parameterType="string" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.category = #{category} AND p.status = 'ACTIVE'
+        ORDER BY p.created_at DESC
+    </select>
+    
+    <select id="selectProgramsByDifficulty" parameterType="string" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.difficulty = #{difficulty} AND p.status = 'ACTIVE'
+        ORDER BY p.created_at DESC
+    </select>
+    
+    <select id="selectProgramsByStatus" parameterType="string" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.status = #{status}
+        ORDER BY p.created_at DESC
+    </select>
+    
+    <select id="selectProgramsByCreator" parameterType="long" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.created_by = #{createdBy}
+        ORDER BY p.created_at DESC
+    </select>
+    
+    <select id="searchPrograms" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.status = 'ACTIVE'
+        <if test="keyword != null and keyword != ''">
+            AND (p.name LIKE CONCAT('%', #{keyword}, '%') 
+                 OR p.description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="category != null and category != ''">
+            AND p.category = #{category}
+        </if>
+        <if test="difficulty != null and difficulty != ''">
+            AND p.difficulty = #{difficulty}
+        </if>
+        ORDER BY p.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <select id="selectRecommendedPrograms" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.status = 'ACTIVE'
+        ORDER BY p.like_count DESC, p.view_count DESC
+        LIMIT #{limit}
+    </select>
+    
+    <select id="selectPopularPrograms" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.status = 'ACTIVE'
+        ORDER BY p.like_count DESC, p.completed_count DESC
+        LIMIT #{limit}
+    </select>
+    
+    <select id="selectRecentPrograms" resultMap="programResultMap">
+        SELECT p.*, m.name as created_by_name
+        FROM programs p
+        LEFT JOIN members m ON p.created_by = m.id
+        WHERE p.status = 'ACTIVE'
+        ORDER BY p.created_at DESC
+        LIMIT #{limit}
+    </select>
+    
+    <update id="updateProgram" parameterType="kr.co.iei.program.dto.Program">
+        UPDATE programs SET
+            name = #{name},
+            description = #{description},
+            category = #{category},
+            difficulty = #{difficulty},
+            duration = #{duration},
+            target_muscles = #{targetMuscles},
+            equipment = #{equipment},
+            instructions = #{instructions},
+            video_url = #{videoUrl},
+            thumbnail_url = #{thumbnailUrl},
+            ai_analysis = #{aiAnalysis},
+            recommended_for = #{recommendedFor},
+            contraindications = #{contraindications},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteProgram" parameterType="long">
+        DELETE FROM programs WHERE id = #{id}
+    </delete>
+    
+    <update id="incrementViewCount" parameterType="long">
+        UPDATE programs SET view_count = view_count + 1 WHERE id = #{id}
+    </update>
+    
+    <update id="incrementLikeCount" parameterType="long">
+        UPDATE programs SET like_count = like_count + 1 WHERE id = #{id}
+    </update>
+    
+    <update id="decrementLikeCount" parameterType="long">
+        UPDATE programs SET like_count = GREATEST(like_count - 1, 0) WHERE id = #{id}
+    </update>
+    
+    <update id="incrementCompletedCount" parameterType="long">
+        UPDATE programs SET completed_count = completed_count + 1 WHERE id = #{id}
+    </update>
+    
+    <update id="updateAverageRating">
+        UPDATE programs SET average_rating = #{rating} WHERE id = #{id}
+    </update>
+    
+    <update id="updateAiAnalysis">
+        UPDATE programs SET ai_analysis = #{analysis} WHERE id = #{id}
+    </update>
+    
+    <select id="countProgramsByCategory" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM programs WHERE category = #{category} AND status = 'ACTIVE'
+    </select>
+    
+    <select id="countProgramsByDifficulty" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM programs WHERE difficulty = #{difficulty} AND status = 'ACTIVE'
+    </select>
+    
+    <select id="countProgramsByStatus" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM programs WHERE status = #{status}
+    </select>
+    
+    <!-- Program Completion 관련 쿼리 -->
+    <insert id="insertProgramCompletion" parameterType="kr.co.iei.program.dto.ProgramCompletion" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO program_completions (
+            program_id, patient_id, therapist_id, completed_at, actual_duration,
+            completion_notes, patient_feedback, difficulty_rating, satisfaction_rating,
+            status, created_at, updated_at
+        ) VALUES (
+            #{programId}, #{patientId}, #{therapistId}, #{completedAt}, #{actualDuration},
+            #{completionNotes}, #{patientFeedback}, #{difficultyRating}, #{satisfactionRating},
+            #{status}, NOW(), NOW()
+        )
+    </insert>
+    
+    <select id="selectCompletionsByPatient" parameterType="long" resultMap="programCompletionResultMap">
+        SELECT pc.*, p.name as program_name, m1.name as patient_name, m2.name as therapist_name
+        FROM program_completions pc
+        LEFT JOIN programs p ON pc.program_id = p.id
+        LEFT JOIN members m1 ON pc.patient_id = m1.id
+        LEFT JOIN members m2 ON pc.therapist_id = m2.id
+        WHERE pc.patient_id = #{patientId}
+        ORDER BY pc.completed_at DESC
+    </select>
+    
+    <select id="selectCompletionsByProgram" parameterType="long" resultMap="programCompletionResultMap">
+        SELECT pc.*, p.name as program_name, m1.name as patient_name, m2.name as therapist_name
+        FROM program_completions pc
+        LEFT JOIN programs p ON pc.program_id = p.id
+        LEFT JOIN members m1 ON pc.patient_id = m1.id
+        LEFT JOIN members m2 ON pc.therapist_id = m2.id
+        WHERE pc.program_id = #{programId}
+        ORDER BY pc.completed_at DESC
+    </select>
+    
+    <select id="selectCompletionsByTherapist" parameterType="long" resultMap="programCompletionResultMap">
+        SELECT pc.*, p.name as program_name, m1.name as patient_name, m2.name as therapist_name
+        FROM program_completions pc
+        LEFT JOIN programs p ON pc.program_id = p.id
+        LEFT JOIN members m1 ON pc.patient_id = m1.id
+        LEFT JOIN members m2 ON pc.therapist_id = m2.id
+        WHERE pc.therapist_id = #{therapistId}
+        ORDER BY pc.completed_at DESC
+    </select>
+    
+    <select id="countCompletionsByProgram" parameterType="long" resultType="int">
+        SELECT COUNT(*) FROM program_completions WHERE program_id = #{programId}
+    </select>
+    
+    <select id="countCompletionsByPatient" parameterType="long" resultType="int">
+        SELECT COUNT(*) FROM program_completions WHERE patient_id = #{patientId}
+    </select>
+    
+</mapper>

@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.co.iei.calendar.dao.CalendarDao">
+    
+    <resultMap id="dailyResultMap" type="kr.co.iei.calendar.dto.Daily">
+        <id property="id" column="id"/>
+        <result property="therapistId" column="therapist_id"/>
+        <result property="patientId" column="patient_id"/>
+        <result property="programId" column="program_id"/>
+        <result property="date" column="date"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="type" column="type"/>
+        <result property="status" column="status"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="location" column="location"/>
+        <result property="meetingLink" column="meeting_link"/>
+        <result property="notes" column="notes"/>
+        <result property="patientNotes" column="patient_notes"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="therapistName" column="therapist_name"/>
+        <result property="patientName" column="patient_name"/>
+        <result property="programName" column="program_name"/>
+    </resultMap>
+    
+    <insert id="insertSchedule" parameterType="kr.co.iei.calendar.dto.Daily" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO daily_schedules (
+            therapist_id, patient_id, program_id, date, start_time, end_time,
+            type, status, title, description, location, meeting_link,
+            notes, patient_notes, created_by, updated_by, created_at, updated_at
+        ) VALUES (
+            #{therapistId}, #{patientId}, #{programId}, #{date}, #{startTime}, #{endTime},
+            #{type}, #{status}, #{title}, #{description}, #{location}, #{meetingLink},
+            #{notes}, #{patientNotes}, #{createdBy}, #{updatedBy}, NOW(), NOW()
+        )
+    </insert>
+    
+    <select id="selectScheduleById" parameterType="long" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.id = #{id}
+    </select>
+    
+    <select id="selectSchedulesByTherapistId" parameterType="long" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.therapist_id = #{therapistId}
+        ORDER BY ds.date DESC, ds.start_time DESC
+    </select>
+    
+    <select id="selectSchedulesByPatientId" parameterType="long" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.patient_id = #{patientId}
+        ORDER BY ds.date DESC, ds.start_time DESC
+    </select>
+    
+    <select id="selectSchedulesByDate" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.therapist_id = #{therapistId} AND ds.date = #{date}
+        ORDER BY ds.start_time ASC
+    </select>
+    
+    <select id="selectSchedulesByMonth" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.therapist_id = #{therapistId} 
+        AND YEAR(ds.date) = #{year} AND MONTH(ds.date) = #{month}
+        ORDER BY ds.date ASC, ds.start_time ASC
+    </select>
+    
+    <select id="selectSchedulesByDateRange" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.therapist_id = #{therapistId} 
+        AND ds.date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY ds.date ASC, ds.start_time ASC
+    </select>
+    
+    <select id="hasTimeConflict" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM daily_schedules 
+        WHERE therapist_id = #{therapistId} 
+        AND date = #{date}
+        AND status != 'CANCELLED'
+        AND (
+            (start_time &lt; #{endTime} AND end_time &gt; #{startTime})
+        )
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+    
+    <select id="selectSchedulesByStatus" parameterType="string" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.status = #{status}
+        ORDER BY ds.date DESC, ds.start_time DESC
+    </select>
+    
+    <select id="selectSchedulesByTherapistAndStatus" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.therapist_id = #{therapistId} AND ds.status = #{status}
+        ORDER BY ds.date DESC, ds.start_time DESC
+    </select>
+    
+    <select id="selectAvailableTimeSlots" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.therapist_id = #{therapistId} 
+        AND ds.date = #{date}
+        AND ds.status = 'SCHEDULED'
+        ORDER BY ds.start_time ASC
+    </select>
+    
+    <select id="selectCompletedSchedules" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.therapist_id = #{therapistId} 
+        AND ds.patient_id = #{patientId}
+        AND ds.status = 'COMPLETED'
+        ORDER BY ds.date DESC, ds.start_time DESC
+    </select>
+    
+    <update id="updateSchedule" parameterType="kr.co.iei.calendar.dto.Daily">
+        UPDATE daily_schedules SET
+            therapist_id = #{therapistId},
+            patient_id = #{patientId},
+            program_id = #{programId},
+            date = #{date},
+            start_time = #{startTime},
+            end_time = #{endTime},
+            type = #{type},
+            title = #{title},
+            description = #{description},
+            location = #{location},
+            meeting_link = #{meetingLink},
+            notes = #{notes},
+            patient_notes = #{patientNotes},
+            updated_by = #{updatedBy},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteSchedule" parameterType="long">
+        DELETE FROM daily_schedules WHERE id = #{id}
+    </delete>
+    
+    <select id="countSchedulesByTherapist" parameterType="long" resultType="int">
+        SELECT COUNT(*) FROM daily_schedules WHERE therapist_id = #{therapistId}
+    </select>
+    
+    <select id="countSchedulesByStatus" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM daily_schedules WHERE status = #{status}
+    </select>
+    
+    <select id="countSchedulesByType" parameterType="string" resultType="int">
+        SELECT COUNT(*) FROM daily_schedules WHERE type = #{type}
+    </select>
+    
+    <select id="selectRecentSchedules" resultMap="dailyResultMap">
+        SELECT ds.*, 
+               m1.name as therapist_name,
+               m2.name as patient_name,
+               p.name as program_name
+        FROM daily_schedules ds
+        LEFT JOIN members m1 ON ds.therapist_id = m1.id
+        LEFT JOIN members m2 ON ds.patient_id = m2.id
+        LEFT JOIN programs p ON ds.program_id = p.id
+        WHERE ds.therapist_id = #{therapistId}
+        ORDER BY ds.date DESC, ds.start_time DESC
+        LIMIT #{limit}
+    </select>
+    
+</mapper>
