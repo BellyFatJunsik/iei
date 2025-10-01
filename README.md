@@ -177,18 +177,48 @@ java -jar target/pt-project-back-1.0.0.jar
 
 
 
-# Docker 환경 시작
+## 🚀 Docker 환경 실행
+
+### 전체 환경 시작
+```bash
 docker-compose up -d
+```
 
-# 컨테이너 상태 확인
+### 백엔드만 재빌드 및 시작
+```bash
+docker-compose up -d --build backend
+```
+
+### 컨테이너 상태 확인
+```bash
 docker-compose ps
+```
 
-# 로그 확인
+### 로그 확인
+```bash
+# 백엔드 로그
 docker-compose logs backend
 
+# MySQL 로그
+docker-compose logs mysql
 
-접속 정보
-백엔드 API: http://localhost:8080
-Swagger UI: http://localhost:8080/swagger-ui/index.html
-phpMyAdmin: http://localhost:8081
-MySQL: localhost:3306
+# 모든 서비스 로그
+docker-compose logs
+```
+
+### 환경 정리
+```bash
+# 컨테이너 중지
+docker-compose down
+
+# 컨테이너 및 볼륨 삭제
+docker-compose down -v
+```
+
+
+## 🌐 접속 정보
+
+- **백엔드 API**: http://localhost:8080
+- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+- **phpMyAdmin**: http://localhost:8081
+- **MySQL**: localhost:3306
