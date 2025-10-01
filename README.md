@@ -72,6 +72,31 @@ src/main/java/kr/co/iei/
 └── notice/                         # 공지사항 도메인
 ```
 
+## 테스트
+
+### 테스트 실행
+```bash
+# 전체 테스트 실행
+mvn test
+
+# 또는 테스트 스크립트 사용
+./run-tests.sh
+```
+
+### 테스트 구조
+```
+src/test/
+├── java/kr/co/iei/
+│   └── ApplicationTests.java          # 기본 애플리케이션 테스트
+└── resources/
+    └── application-test.properties    # 테스트용 설정 (H2 인메모리 DB)
+```
+
+### 테스트 환경
+- **데이터베이스**: H2 인메모리 데이터베이스
+- **프로파일**: test
+- **포트**: 동적 할당 (0)
+
 ## 설치 및 실행
 
 ### 1. 사전 요구사항
